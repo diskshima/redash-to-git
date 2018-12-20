@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    byebug (10.0.2)
+    faraday (0.15.2)
+      multipart-post (>= 1.2, < 3)
+    git (1.3.0)
+    multipart-post (2.0.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  byebug
+  faraday
+  git
+
+BUNDLED WITH
+   1.16.3
