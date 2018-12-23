@@ -11,6 +11,40 @@ require 'fileutils'
 require 'json'
 require 'optparse'
 
+def get_redash_queries(base_url, key)
+  headers = {
+    'Authorization' => "Key #{key}",
+    'Content-Type' => 'application/json',
+  }
+
+  conn = Faraday.new(url: "#{base_url.scheme}://#{base_url.host}:#{base_url.port}",
+                     headers: headers)
+
+  results = []
+  page = 1
+
+  loop do
+    params = { page: page }
+    response = conn.get("#{base_url.path}/api/queries", params)
+    content = JSON.parse(response.body)
+    done = page * content['page_size'] + 1 > content['count']
+    results += content['results']
+    break if done
+    page += 1
+  end
+
+  results
+end
+
+def to_file_list(redash_results, output_dir)
+  redash_results.map do |e|
+    file_name = "#{e['id']}_#{e['name']}.sql"
+    file_path = File.join(output_dir, file_name)
+    File.open(file_path, 'w') { |f| f.write(e['query']) }
+    file_path
+  end
+end
+
 options = {
   key: ENV['REDASH_API_KEY'],
   output_dir: 'data',
@@ -43,31 +77,6 @@ end
 
 FileUtils.mkdir_p(output_dir) unless dir_exists
 
-headers = {
-  'Authorization' => "Key #{options[:key]}",
-  'Content-Type' => 'application/json',
-}
-
-uri = URI::parse(options[:url])
-
-conn = Faraday.new(url: "#{uri.scheme}://#{uri.host}:#{uri.port}", headers: headers)
-
-results = []
-page = 1
-
-loop do
-  params = { page: page }
-  response = conn.get("#{uri.path}/api/queries", params)
-  content = JSON.parse(response.body)
-  done = page * content['page_size'] + 1 > content['count']
-  results += content['results']
-  break if done
-  page += 1
-end
-
-results.map do |e|
-  file_name = "#{e['id']}_#{e['name']}.sql"
-  file_path = File.join(output_dir, file_name)
-  File.open(file_path, 'w') { |f| f.write(e['query']) }
-  puts "Wrote query to #{file_path}."
-end
+base_url = URI::parse(options[:url])
+results = get_redash_queries(base_url, options[:key])
+files_list = to_file_list(results, output_dir)
