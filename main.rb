@@ -8,8 +8,10 @@
 
 require 'faraday'
 require 'fileutils'
+require 'git'
 require 'json'
 require 'optparse'
+require 'tempfile'
 
 def get_redash_queries(base_url, key)
   headers = {
@@ -36,13 +38,28 @@ def get_redash_queries(base_url, key)
   results
 end
 
-def to_file_list(redash_results, output_dir)
+def to_file_name(redash_query)
+  "#{redash_query['id']}_#{redash_query['name']}.sql"
+end
+
+def write_to_file(redash_results, output_dir)
   redash_results.map do |e|
-    file_name = "#{e['id']}_#{e['name']}.sql"
-    file_path = File.join(output_dir, file_name)
+    file_path = File.join(output_dir, to_file_name(e))
     File.open(file_path, 'w') { |f| f.write(e['query']) }
-    file_path
   end
+end
+
+def is_git_dir?(dir)
+  File.directory?(File.join(dir, '.git'))
+end
+
+def ask_commit_message
+  content = ''
+  Tempfile.create do |f|
+    system(ENV['EDITOR'], f.path)
+    content = File.read(f)
+  end
+  content
 end
 
 options = {
@@ -70,13 +87,20 @@ end.parse!
 
 output_dir = options[:output_dir]
 dir_exists = File.directory?(output_dir)
-if dir_exists && !Dir.empty?(output_dir)
-  puts "#{output_dir} is not empty."
-  exit(-1)
-end
 
 FileUtils.mkdir_p(output_dir) unless dir_exists
 
 base_url = URI::parse(options[:url])
 results = get_redash_queries(base_url, options[:key])
-files_list = to_file_list(results, output_dir)
+write_to_file(results, output_dir)
+file_names = results.map { |e| to_file_name(e) }
+
+git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
+git.add(file_names)
+
+# TODO: Delete other files
+
+message = ask_commit_message
+git.commit(message)
+
+# TODO: git_push
