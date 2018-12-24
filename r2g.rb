@@ -99,9 +99,13 @@ git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
 git.add(file_names)
 
 existing_files = git.ls_files('.').keys
-git.remove(existing_files - file_names)
+files_diff = existing_files - file_names
+git.remove(files_diff) if files_diff.count > 0
 
-message = ask_commit_message
-git.commit(message)
-
-# TODO: git_push
+stats = git.diff.stats
+if stats[:files].any?
+  message = ask_commit_message
+  git.commit(message)
+else
+  puts 'No diff detected. Doing nothing.'
+end
