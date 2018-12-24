@@ -62,6 +62,11 @@ def ask_commit_message
   content
 end
 
+def can_commit?(git)
+  stats = git.diff('--cached').stats
+  stats[:files].any?
+end
+
 options = {
   key: ENV['REDASH_API_KEY'],
   output_dir: 'data',
@@ -102,8 +107,7 @@ existing_files = git.ls_files('.').keys
 files_diff = existing_files - file_names
 git.remove(files_diff) if files_diff.count > 0
 
-stats = git.diff.stats
-if stats[:files].any?
+if can_commit?(git)
   message = ask_commit_message
   git.commit(message)
 else
