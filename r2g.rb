@@ -98,7 +98,8 @@ file_names = results.map { |e| to_file_name(e) }
 git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
 git.add(file_names)
 
-# TODO: Delete other files
+existing_files = git.ls_files('.').keys
+git.remove(existing_files - file_names)
 
 message = ask_commit_message
 git.commit(message)
