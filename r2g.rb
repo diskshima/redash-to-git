@@ -62,7 +62,7 @@ def ask_commit_message
   content
 end
 
-def can_commit?(git)
+def has_diff?(git)
   stats = git.diff('--cached').stats
   stats[:files].any?
 end
@@ -83,6 +83,9 @@ OptionParser.new do |opts|
   end
   opts.on('-o OUTPUT_DIR', '--output-dir OUTPUT_DIR', 'Output directory. Defaults to "data/"') do |o|
     options[:output_dir] = o
+  end
+  opts.on('-c', '--[no-]commit', 'Do not create a commit.') do |c|
+    options[:commit] = c
   end
   opts.on('-h', '--help', 'Display this help.') do
     puts opts
@@ -108,9 +111,11 @@ only_files = git_files.reject { |f| f.include?('/') }
 files_diff = only_files - file_names
 git.remove(files_diff) if files_diff.count > 0
 
-if can_commit?(git)
-  message = ask_commit_message
-  git.commit(message)
-else
+if has_diff?(git)
   puts 'No diff detected. Doing nothing.'
+else
+  if options[:commit]
+    message = ask_commit_message
+    git.commit(message)
+  end
 end
