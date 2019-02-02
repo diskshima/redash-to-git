@@ -67,6 +67,10 @@ def has_diff?(git)
   stats[:files].any?
 end
 
+def configure_git(git)
+  git.config('core.quotepath', 'true')
+end
+
 options = {
   key: ENV['REDASH_API_KEY'],
   output_dir: 'data',
@@ -104,6 +108,7 @@ write_to_file(results, output_dir)
 file_names = results.map { |e| to_file_name(e) }
 
 git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
+configure_git(git)
 git.add(file_names)
 
 git_files = git.ls_files('.').keys
