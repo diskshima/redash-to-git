@@ -103,8 +103,9 @@ file_names = results.map { |e| to_file_name(e) }
 git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
 git.add(file_names)
 
-existing_files = git.ls_files('.').keys
-files_diff = existing_files - file_names
+git_files = git.ls_files('.').keys
+only_files = git_files.reject { |f| f.include?('/') }
+files_diff = only_files - file_names
 git.remove(files_diff) if files_diff.count > 0
 
 if can_commit?(git)
