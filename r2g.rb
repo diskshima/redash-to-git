@@ -67,8 +67,18 @@ def has_diff?(git)
   stats[:files].any?
 end
 
-def configure_git(git)
-  git.config('core.quotepath', 'true')
+def with_git_configs(git, configs, &block)
+  prev_configs = {}
+  configs.each do |k, v|
+    prev_configs[k] = git.config(k)
+    git.config(k, v)
+  end
+
+  yield
+
+  prev_configs.each do |k, v|
+    git.config(k, v)
+  end
 end
 
 options = {
@@ -88,7 +98,7 @@ OptionParser.new do |opts|
   opts.on('-o OUTPUT_DIR', '--output-dir OUTPUT_DIR', 'Output directory. Defaults to "data/"') do |o|
     options[:output_dir] = o
   end
-  opts.on('-c', '--[no-]commit', 'Do not create a commit.') do |c|
+  opts.on('-c', '--[no-]commit', 'Create a commit.') do |c|
     options[:commit] = c
   end
   opts.on('-h', '--help', 'Display this help.') do
@@ -108,19 +118,21 @@ write_to_file(results, output_dir)
 file_names = results.map { |e| to_file_name(e) }
 
 git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
-configure_git(git)
-git.add(file_names)
 
-git_files = git.ls_files('.').keys
-only_files = git_files.reject { |f| f.include?('/') }
-files_diff = only_files - file_names
-git.remove(files_diff) if files_diff.count > 0
+with_git_configs(git, { 'core.quotepath' => true }) do
+  git.add(file_names)
 
-if has_diff?(git)
-  puts 'No diff detected. Doing nothing.'
-else
-  if options[:commit]
-    message = ask_commit_message
-    git.commit(message)
+  git_files = git.ls_files('.').keys
+  only_files = git_files.reject { |f| f.include?('/') }
+  files_diff = only_files - file_names
+  git.remove(files_diff) if files_diff.count > 0
+
+  if has_diff?(git)
+    if options[:commit]
+      message = ask_commit_message
+      git.commit(message)
+    end
+  else
+    puts 'No diff detected. Doing nothing.'
   end
 end
