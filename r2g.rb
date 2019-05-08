@@ -13,6 +13,8 @@ require 'json'
 require 'optparse'
 require 'tempfile'
 
+IGNORE_PATH = File.join(ENV['HOME'], '.r2gignore')
+
 def get_redash_queries(base_url, key)
   headers = {
     'Authorization' => "Key #{key}",
@@ -81,6 +83,13 @@ def with_git_configs(git, configs, &block)
   end
 end
 
+def read_ignores
+  return [] unless File.exist?(IGNORE_PATH)
+
+  entries = File.readlines(IGNORE_PATH, chomp: true)
+  entries.map { |e| Dir.glob(e) }.flatten
+end
+
 options = {
   key: ENV['REDASH_API_KEY'],
   output_dir: 'data',
@@ -117,14 +126,16 @@ results = get_redash_queries(base_url, options[:key])
 write_to_file(results, output_dir)
 file_names = results.map { |e| to_file_name(e) }
 
+ignores = read_ignores
+
 git = is_git_dir?(output_dir) ? Git.open(output_dir) : Git.init(output_dir)
 
 with_git_configs(git, { 'core.quotepath' => true }) do
-  git.add(file_names)
+  git.add(file_names - ignores)
 
   git_files = git.ls_files('.').keys
   only_files = git_files.reject { |f| f.include?('/') }
-  files_diff = only_files - file_names
+  files_diff = only_files - file_names - ignores
   git.remove(files_diff) if files_diff.count > 0
 
   if has_diff?(git)
