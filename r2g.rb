@@ -29,11 +29,12 @@ def get_redash_queries(base_url, key)
 
   loop do
     params = { page: page }
-    response = conn.get("#{base_url.path}/api/queries", params)
+    response = conn.get("#{base_url.path.gsub(%r{[\/]+$}, '')}/api/queries", params)
     content = JSON.parse(response.body)
     done = page * content['page_size'] + 1 > content['count']
     results += content['results']
     break if done
+
     page += 1
   end
 
