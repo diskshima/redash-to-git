@@ -6,12 +6,14 @@
 # Distributed under terms of the MIT license.
 #
 
-require 'faraday'
 require 'fileutils'
-require 'git'
 require 'json'
 require 'optparse'
 require 'tempfile'
+require 'uri'
+
+require 'faraday'
+require 'git'
 
 IGNORE_PATH = File.join(ENV['HOME'], '.r2gignore')
 
